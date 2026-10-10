@@ -37,7 +37,7 @@
     }
   ],
   "profile": "quick-skin",
-  "repository": "The-Plum-Team/mod-base-canary",
+  "repository": "The-Plum-Team/mod-base-canary-2",
   "scenario_contract": {
     "path": "ci/synthetic/scenario-contract.json"
   },

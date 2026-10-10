@@ -2,7 +2,7 @@
   "kind": "mod-base.ci.activation",
   "mode": "shared-build-and-e2e",
   "profile": "quick-skin",
-  "repository": "The-Plum-Team/mod-base-canary",
+  "repository": "The-Plum-Team/mod-base-canary-2",
   "rollback_from": null,
   "schema_version": 1
 }

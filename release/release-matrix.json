@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "repository": "The-Plum-Team/mod-base-canary",
+  "repository": "The-Plum-Team/mod-base-canary-2",
   "project": {
     "description": "Synthetic demonstration evidence — not a product. The mod-base canary publishes generated images through the same pinned kit, workflows and checks the Plum Team mods use, so every cross-repository behaviour is proven before a kit release."
   },

@@ -67,7 +67,7 @@ jobs:
       actions: read
       contents: read
       pull-requests: read
-    uses: The-Plum-Team/mod-base/.github/workflows/select-build.yml@c7981f8b3ad4a7cf62373898e90d9ce6deb99c31 # v1.2.0
+    uses: The-Plum-Team/mod-base/.github/workflows/select-build.yml@7cb9748a1d3ba6182ce29875aba10518944e9521 # v1.2.1
     with:
       kit-sha: ${{ needs.guard.outputs.kit-sha }}
 
@@ -81,7 +81,7 @@ jobs:
       actions: read
       contents: read
       pull-requests: read
-    uses: The-Plum-Team/mod-base/.github/workflows/build.yml@c7981f8b3ad4a7cf62373898e90d9ce6deb99c31 # v1.2.0
+    uses: The-Plum-Team/mod-base/.github/workflows/build.yml@7cb9748a1d3ba6182ce29875aba10518944e9521 # v1.2.1
     with:
       kit-sha: ${{ needs.guard.outputs.kit-sha }}
 
@@ -104,7 +104,7 @@ jobs:
       actions: read
       contents: read
       pull-requests: read
-    uses: The-Plum-Team/mod-base/.github/workflows/packaged-e2e.yml@c7981f8b3ad4a7cf62373898e90d9ce6deb99c31 # v1.2.0
+    uses: The-Plum-Team/mod-base/.github/workflows/packaged-e2e.yml@7cb9748a1d3ba6182ce29875aba10518944e9521 # v1.2.1
     with:
       kit-sha: ${{ needs.guard.outputs.kit-sha }}
       pr-number: ${{ format('{0}', github.event.pull_request.number) }}

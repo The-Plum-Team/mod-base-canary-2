@@ -12,7 +12,7 @@
       },
       {
         "path": "scripts/ci/policy_suite.py",
-        "sha256": "7e91cc220eb5dd4d6cf9f8564ef953d4f50955e3e0650fd133ae67d897d5b119"
+        "sha256": "e71fa02e7ecf190423f229bf2af9d3edcb56eb697fef0a33d9e12c61683049ed"
       }
     ],
     "path": "scripts/ci/mod_base_build_adapter.py",

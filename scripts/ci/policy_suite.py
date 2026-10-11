@@ -6,6 +6,7 @@ does. The real mods run their unit suites here instead.
 
 from __future__ import annotations
 
+import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -14,6 +15,10 @@ import mod_base_build_adapter as adapter
 
 CONFIG = "scripts/ci/mod-base-build.json"
 SOURCE = "src/payload.txt"
+#: K7 (mod-base v1.2.1 canary): the protected policy outlasts both targets on purpose, as the
+#: real mods' unit suites do, so that the shared Build must seal only after the policy has
+#: finished (mod-base #20). Stays well below the policy timeout of 300 s.
+SLOW_POLICY_SECONDS = 210
 
 
 def _read(root: Path, relative: str) -> bytes:
@@ -55,11 +60,16 @@ def _the_source_is_present(root: Path) -> None:
         raise adapter.AdapterError(f"{SOURCE} is empty")
 
 
+def _the_policy_outlasts_the_targets(root: Path) -> None:
+    time.sleep(SLOW_POLICY_SECONDS)
+
+
 CHECKS: tuple[Callable[[Path], None], ...] = (
     _inventory_and_contract_are_well_formed,
     _every_lane_has_a_scenario,
     _every_scenario_is_used,
     _the_source_is_present,
+    _the_policy_outlasts_the_targets,
 )
 
 

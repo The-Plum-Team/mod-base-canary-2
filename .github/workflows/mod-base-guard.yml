@@ -24,8 +24,8 @@ on:
 permissions: {}
 
 env:
-  MB_KIT_SHA: "7cb9748a1d3ba6182ce29875aba10518944e9521"
-  MB_KIT_VERSION: "v1.2.1"
+  MB_KIT_SHA: "f29d611ced1fed5b723862e7e17e04e2253cdef3"
+  MB_KIT_VERSION: "v1.3.0"
 
 jobs:
   verify:

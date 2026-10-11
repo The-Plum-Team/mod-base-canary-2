@@ -8,7 +8,7 @@
       },
       {
         "path": "scripts/ci/mod_base_build_dispatch.py",
-        "sha256": "fd1981acd8d655379d29f3770cb84458f93bbee5caf00f8eb948c307a874be94"
+        "sha256": "28c7d3e4d5d6b7e041d36800a33ee071e60fd07371f56569a37525c895c64822"
       },
       {
         "path": "scripts/ci/policy_suite.py",

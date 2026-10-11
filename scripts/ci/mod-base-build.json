@@ -42,6 +42,28 @@
     "path": "ci/synthetic/scenario-contract.json"
   },
   "schema_version": 1,
+  "seeds": {
+    "gradle": {
+      "key_files": [
+        {
+          "path": "ci/synthetic/inventory.json"
+        },
+        {
+          "path": "gradle.properties"
+        }
+      ]
+    },
+    "runtime": {
+      "key_files": [
+        {
+          "path": "ci/synthetic/inventory.json"
+        },
+        {
+          "path": "gradle.properties"
+        }
+      ]
+    }
+  },
   "timeouts": {
     "policy_seconds": 300,
     "runtime_seconds": 600,

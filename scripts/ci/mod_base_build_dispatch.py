@@ -14,10 +14,12 @@ is tested. Every output is a new private file: nothing is overwritten and nothin
 
 from __future__ import annotations
 
+import hashlib
 import os
 import subprocess
 import sys
 import time
+import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -31,6 +33,11 @@ UNIT_NAMES = {"build_target": "MB_TARGET_ID", "verify_target": "MB_TARGET_ID", "
               "run_lane": "MB_LANE_ID", "verify_runtime": "MB_LANE_ID"}
 CANDIDATE_HOOKS = ("policy", "build_target", "run_lane")
 KIT_FILES = ("ci-envelope.json", "ci-runtime-envelope.json")
+#: A real dependency ``build_target`` and ``run_lane`` resolve into ``$GRADLE_USER_HOME/caches`` where
+#: Gradle keeps it, so that the protected seed of a target or lane has something to carry (K7 canary
+#: only: group, module, version, SHA-1 directory, SHA-256). The hook's outputs never depend on it.
+DEPENDENCY = ("org.apache.commons", "commons-lang3", "3.17.0", "b17d2136f0460dcc0d2016ceefca8723bdf4ee70",
+              "6ee731df5c8e5a2976a1ca023b6bb320ea8d3539fbe64c8a1d5cb765127c33b4")
 
 
 class Output:
@@ -161,6 +168,37 @@ def _run_lane(checkout: Path, output: Output, lane: str) -> None:
         output.write(path, data)
 
 
+def _resolve_dependency(label: str) -> None:
+    """Keep :data:`DEPENDENCY` in the Gradle home: reuse a copy whose SHA-256 matches (a restored
+    seed), otherwise download it from Maven Central and check it before it is kept."""
+
+    group, module, version, sha1, digest = DEPENDENCY
+    name = f"{module}-{version}.jar"
+    path = Path(os.environ["GRADLE_USER_HOME"], "caches", "modules-2", "files-2.1", group, module, version, sha1, name)
+    if path.is_file() and not path.is_symlink() and hashlib.sha256(path.read_bytes()).hexdigest() == digest:
+        print(f"synthetic {label}: {name} reused from the Gradle home", flush=True)
+        return
+    url = f"https://repo1.maven.org/maven2/{group.replace('.', '/')}/{module}/{version}/{name}"
+    started = time.monotonic()
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(url, timeout=60) as response:
+                data = response.read()
+            break
+        except OSError:
+            if attempt == 2:
+                raise
+            time.sleep(5)
+    if hashlib.sha256(data).hexdigest() != digest:
+        raise adapter.AdapterError(f"{name} from Maven Central has another SHA-256")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    partial = path.with_name(f"{name}.part")
+    partial.write_bytes(data)
+    os.replace(partial, path)
+    print(f"synthetic {label}: {name} downloaded, {len(data)} bytes in {time.monotonic() - started:.2f} s",
+          flush=True)
+
+
 def _hook(hook: str, unit: str | None, root: Path, output: Output) -> None:
     if hook == "derive_plan":
         inventory, contract, _ = _protected_inputs(root)
@@ -179,6 +217,7 @@ def _hook(hook: str, unit: str | None, root: Path, output: Output) -> None:
         if failures:
             raise adapter.AdapterError("; ".join(failures))
     elif hook == "build_target":
+        _resolve_dependency(f"{hook} {unit}")
         _, inventory, _ = _candidate_inputs(Path.cwd())
         target = adapter.target_of(inventory, unit)
         for path, data in adapter.build_target(inventory, target, tested_sha=os.environ["MB_TESTED_SHA"],
@@ -186,6 +225,7 @@ def _hook(hook: str, unit: str | None, root: Path, output: Output) -> None:
                                                source=_read(Path.cwd(), policy_suite.SOURCE)).items():
             output.write(path, data)
     else:
+        _resolve_dependency(f"{hook} {unit}")
         _run_lane(Path.cwd(), output, unit)
 
 

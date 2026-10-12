@@ -1,0 +1,126 @@
+# K7 canary only: a consumer job of the default branch (mod-base v1.4.0+ `ci select-generation`).
+# It runs the documented consumer steps (the kit comes from the pinned setup action, the only
+# mod-base reference form a mod workflow may carry), then selects the tested generation of the
+# live main head with the Build bundle and every lane export. It reads only and uploads nothing.
+name: K7 consumer
+
+on:
+  workflow_run:
+    workflows: ["mod-base Build", "mod-base packaged E2E"]
+    types: [completed]
+    branches: ["main"]
+  workflow_dispatch: {}
+
+permissions: {}
+
+jobs:
+  select:
+    name: Select the tested generation
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Admit the event
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF" == refs/heads/main && "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "not main" >&2; exit 1; }
+      - name: Check out the protected mod head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: mod
+          persist-credentials: false
+      - name: Install Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Verify the pinned kit and install the imaging dependency
+        uses: The-Plum-Team/mod-base/actions/setup@9f9fddd1a6c40dce13114ff7272e1bcedfc59f65 # v1.4.1
+        with:
+          mod-root: mod
+      - name: Authenticate the consumer's subject
+        id: subject
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          unset ACTIONS_RUNTIME_TOKEN ACTIONS_CACHE_URL ACTIONS_RESULTS_URL ACTIONS_ID_TOKEN_REQUEST_TOKEN ACTIONS_ID_TOKEN_REQUEST_URL GITHUB_TOKEN
+          env -u PYTHONPATH PYTHONPATH="$MOD_BASE_KIT_PATH/src" PYTHONSAFEPATH=1 PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1 \
+            python3 -P -m mod_base ci subject --repo mod --config mod/site/mod-base.json --state "$RUNNER_TEMP/mb-state" \
+            --producer generation --pr "" --github-output "$GITHUB_OUTPUT"
+      - name: Check out the tested candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.subject.outputs.tested_sha }}
+          path: candidate
+          persist-credentials: false
+      - name: Fence the host and prepare the worker accounts
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset ACTIONS_RUNTIME_TOKEN ACTIONS_CACHE_URL ACTIONS_RESULTS_URL ACTIONS_ID_TOKEN_REQUEST_TOKEN ACTIONS_ID_TOKEN_REQUEST_URL GITHUB_TOKEN GH_TOKEN
+          interpreter="$(command -v python3)"
+          env -u PYTHONPATH PYTHONPATH="$MOD_BASE_KIT_PATH/src" PYTHONSAFEPATH=1 PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1 \
+            python3 -P -m mod_base ci worker-prepare --repo mod --config mod/site/mod-base.json --state "$RUNNER_TEMP/mb-state" \
+            --roles validator --python "$interpreter" \
+            --java-home "$JAVA_HOME_17_X64" --java-home "$JAVA_HOME_21_X64" --java-home "$JAVA_HOME_25_X64"
+      - name: Derive the protected plan
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          unset ACTIONS_RUNTIME_TOKEN ACTIONS_CACHE_URL ACTIONS_RESULTS_URL ACTIONS_ID_TOKEN_REQUEST_TOKEN ACTIONS_ID_TOKEN_REQUEST_URL GITHUB_TOKEN
+          env -u PYTHONPATH PYTHONPATH="$MOD_BASE_KIT_PATH/src" PYTHONSAFEPATH=1 PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1 \
+            python3 -P -m mod_base ci plan --repo mod --config mod/site/mod-base.json --state "$RUNNER_TEMP/mb-state" \
+            --pin-candidate candidate --github-output "$GITHUB_OUTPUT"
+      - name: Select the tested generation
+        id: select
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          unset ACTIONS_RUNTIME_TOKEN ACTIONS_CACHE_URL ACTIONS_RESULTS_URL ACTIONS_ID_TOKEN_REQUEST_TOKEN ACTIONS_ID_TOKEN_REQUEST_URL GITHUB_TOKEN
+          out="$RUNNER_TEMP/generation"
+          code=0
+          env -u PYTHONPATH PYTHONPATH="$MOD_BASE_KIT_PATH/src" PYTHONSAFEPATH=1 PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1 \
+            python3 -P -m mod_base ci select-generation --repo mod --config mod/site/mod-base.json --state "$RUNNER_TEMP/mb-state" \
+            --output "$out" --with-build --all-lanes --github-output "$GITHUB_OUTPUT" || code=$?
+          printf 'K7-CONSUMER exit=%s head=%s event=%s\n' "$code" "$GITHUB_SHA" "$GITHUB_EVENT_NAME"
+          if [[ -f "$out/generation.json" ]]; then
+            jq -c '{mode, covered: .identity.head_sha, plan: .plan_sha256,
+                    source_pr: .source.identity.pr_number, source_head: .source.identity.head_sha,
+                    source_tested: .source.identity.tested_sha,
+                    seals: [.source.build_seal.artifact, .source.packaged_seal.artifact],
+                    build: .build.artifact, results: .results.artifact,
+                    references: (if .references == null then null else (.references | map_values(.artifact)) end),
+                    lanes: [.lanes[] | {id, artifact: .descriptor.artifact}]}' \
+              "$out/generation.json" | sed 's/^/K7-GENERATION /'
+            for lane in "$out"/lanes/*/; do
+              printf 'K7-LANE %s files=%s\n' "$(basename "$lane")" "$(find "$lane" -type f | wc -l)"
+            done
+            printf 'K7-BUILD files=%s\n' "$(find "$out/build" -type f 2>/dev/null | wc -l)"
+          else
+            printf 'K7-GENERATION none published\n'
+          fi
+          case "$code" in
+            0) ;;
+            3) printf '::notice title=No tested generation::exit 3, nothing published\n' ;;
+            *) exit "$code" ;;
+          esac
+      - name: Terminate and lock the worker accounts
+        if: ${{ always() && steps.subject.outcome == 'success' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset ACTIONS_RUNTIME_TOKEN ACTIONS_CACHE_URL ACTIONS_RESULTS_URL ACTIONS_ID_TOKEN_REQUEST_TOKEN ACTIONS_ID_TOKEN_REQUEST_URL GITHUB_TOKEN GH_TOKEN
+          env -u PYTHONPATH PYTHONPATH="$MOD_BASE_KIT_PATH/src" PYTHONSAFEPATH=1 PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1 \
+            python3 -P -m mod_base ci worker-finish --repo mod --config mod/site/mod-base.json --state "$RUNNER_TEMP/mb-state"

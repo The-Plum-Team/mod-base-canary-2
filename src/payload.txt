@@ -1,1 +1,2 @@
 Synthetic source of the synthetic mod. Every staged JAR embeds these bytes.
+K7 v1.6.0 src change (synthetic).

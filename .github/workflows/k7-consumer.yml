@@ -2,6 +2,11 @@
 # It runs the documented consumer steps (the kit comes from the pinned setup action, the only
 # mod-base reference form a mod workflow may carry), then selects the tested generation of the
 # live main head with the Build bundle and every lane export. It reads only and uploads nothing.
+# v1.6.0 round (KQ9-4): when nothing is selected for ci-generation-absent or
+# ci-generation-evidence-unavailable, a second job runs `ci request-generation`. The canary has no
+# dedicated dispatch App, so it dispatches with the job's own github.token (actions: write): the
+# requested runs start, but their completion wakes no workflow_run consumer (documented); the
+# operator dispatches this workflow again to select the requested generation.
 name: K7 consumer
 
 on:
@@ -21,6 +26,8 @@ jobs:
       github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    outputs:
+      reason: ${{ steps.select.outputs.reason }}
     permissions:
       actions: read
       contents: read
@@ -124,3 +131,62 @@ jobs:
           unset ACTIONS_RUNTIME_TOKEN ACTIONS_CACHE_URL ACTIONS_RESULTS_URL ACTIONS_ID_TOKEN_REQUEST_TOKEN ACTIONS_ID_TOKEN_REQUEST_URL GITHUB_TOKEN GH_TOKEN
           env -u PYTHONPATH PYTHONPATH="$MOD_BASE_KIT_PATH/src" PYTHONSAFEPATH=1 PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1 \
             python3 -P -m mod_base ci worker-finish --repo mod --config mod/site/mod-base.json --state "$RUNNER_TEMP/mb-state"
+
+  request:
+    name: Request a full generation
+    needs: select
+    if: >-
+      always() &&
+      (needs.select.outputs.reason == 'ci-generation-absent' ||
+       needs.select.outputs.reason == 'ci-generation-evidence-unavailable')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    concurrency:
+      group: mod-base-request-generation-${{ github.sha }}
+      cancel-in-progress: false
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Admit the event
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF" == refs/heads/main && "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "not main" >&2; exit 1; }
+      - name: Check out the protected mod head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: mod
+          persist-credentials: false
+      - name: Install Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Verify the pinned kit
+        uses: The-Plum-Team/mod-base/actions/setup@65b541242543a49f6448a7d55d667d4cdd21ae04 # v1.6.0
+        with:
+          mod-root: mod
+      - name: Authenticate the consumer's subject
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          unset ACTIONS_RUNTIME_TOKEN ACTIONS_CACHE_URL ACTIONS_RESULTS_URL ACTIONS_ID_TOKEN_REQUEST_TOKEN ACTIONS_ID_TOKEN_REQUEST_URL GITHUB_TOKEN
+          env -u PYTHONPATH PYTHONPATH="$MOD_BASE_KIT_PATH/src" PYTHONSAFEPATH=1 PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1 \
+            python3 -P -m mod_base ci subject --repo mod --config mod/site/mod-base.json --state "$RUNNER_TEMP/mb-state" \
+            --producer generation --pr "" --github-output "$RUNNER_TEMP/subject-output"
+      - name: Request a full generation of this commit
+        id: request
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REASON: ${{ needs.select.outputs.reason }}
+        run: |
+          set -euo pipefail
+          unset ACTIONS_RUNTIME_TOKEN ACTIONS_CACHE_URL ACTIONS_RESULTS_URL ACTIONS_ID_TOKEN_REQUEST_TOKEN ACTIONS_ID_TOKEN_REQUEST_URL GITHUB_TOKEN
+          env -u PYTHONPATH PYTHONPATH="$MOD_BASE_KIT_PATH/src" PYTHONSAFEPATH=1 PYTHONDONTWRITEBYTECODE=1 PYTHONNOUSERSITE=1 \
+            python3 -P -m mod_base ci request-generation --repo mod --config mod/site/mod-base.json --state "$RUNNER_TEMP/mb-state" \
+            --reason "$REASON" --github-output "$GITHUB_OUTPUT"
+          printf 'K7-REQUEST head=%s reason=%s\n' "$GITHUB_SHA" "$REASON"

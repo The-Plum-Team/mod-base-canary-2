@@ -4,11 +4,11 @@
     "files": [
       {
         "path": "scripts/ci/mod_base_build_adapter.py",
-        "sha256": "3316be461e6c19f6c6d402203679293a424221c946592b30cde05172dfa0f7ee"
+        "sha256": "d6c6abd64077fa0cd3da0db1ad2081811f2288af8bb7688f5671f4adf6e5bede"
       },
       {
         "path": "scripts/ci/mod_base_build_dispatch.py",
-        "sha256": "28c7d3e4d5d6b7e041d36800a33ee071e60fd07371f56569a37525c895c64822"
+        "sha256": "e23bc49cce8f3267f59313464cc49338e2a5d3ea52cd9e130749272d6e338338"
       },
       {
         "path": "scripts/ci/policy_suite.py",
@@ -56,6 +56,9 @@
   ],
   "profile": "quick-skin",
   "repository": "The-Plum-Team/mod-base-canary-2",
+  "runtime_selection": {
+    "input": "changed-paths-v1"
+  },
   "scenario_contract": {
     "path": "ci/synthetic/scenario-contract.json"
   },

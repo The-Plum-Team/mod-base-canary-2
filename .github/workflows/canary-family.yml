@@ -42,7 +42,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Verify the pinned kit and install the imaging dependency
-        uses: The-Plum-Team/mod-base/actions/setup@65b541242543a49f6448a7d55d667d4cdd21ae04 # v1.6.0
+        uses: The-Plum-Team/mod-base/actions/setup@1b0c78bae4e484980a30a51a6bd2b52975029518 # v1.6.1
       - name: Read this producer attempt
         shell: bash
         env:
@@ -75,7 +75,7 @@ jobs:
           printf 'key=%s\nbundle=%s\n' "$KEY" "$bundle" >> "$GITHUB_OUTPUT"
       - name: Upload the mod-base family handoff
         id: handoff
-        uses: The-Plum-Team/mod-base/actions/publish-family@65b541242543a49f6448a7d55d667d4cdd21ae04 # v1.6.0
+        uses: The-Plum-Team/mod-base/actions/publish-family@1b0c78bae4e484980a30a51a6bd2b52975029518 # v1.6.1
         with:
           family: demo-pairs
           key: ${{ steps.native.outputs.key }}
@@ -93,7 +93,7 @@ jobs:
       actions: write
     steps:
       - name: Dispatch the separately locked family publication
-        uses: The-Plum-Team/mod-base/actions/notify-pages@65b541242543a49f6448a7d55d667d4cdd21ae04 # v1.6.0
+        uses: The-Plum-Team/mod-base/actions/notify-pages@1b0c78bae4e484980a30a51a6bd2b52975029518 # v1.6.1
         with:
           operation: family
           run-id: ${{ github.run_id }}

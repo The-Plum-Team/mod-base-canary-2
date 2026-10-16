@@ -48,7 +48,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Verify the pinned kit and install the imaging dependency
-        uses: The-Plum-Team/mod-base/actions/setup@1b0c78bae4e484980a30a51a6bd2b52975029518 # v1.6.1
+        uses: The-Plum-Team/mod-base/actions/setup@acb01ca4f625a5d27f1c1a709a416d9725bef64f # v1.7.0
         with:
           mod-root: mod
       - name: Authenticate the consumer's subject
@@ -164,7 +164,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Verify the pinned kit
-        uses: The-Plum-Team/mod-base/actions/setup@1b0c78bae4e484980a30a51a6bd2b52975029518 # v1.6.1
+        uses: The-Plum-Team/mod-base/actions/setup@acb01ca4f625a5d27f1c1a709a416d9725bef64f # v1.7.0
         with:
           mod-root: mod
       - name: Authenticate the consumer's subject

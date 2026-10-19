@@ -33,7 +33,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Verify the pinned kit
-        uses: The-Plum-Team/mod-base/actions/setup@acb01ca4f625a5d27f1c1a709a416d9725bef64f # v1.7.0
+        uses: The-Plum-Team/mod-base/actions/setup@d938d8bc404aec629e925ba57d8a4f4a8ada9f07 # v1.7.1
         with:
           install-imaging: "false"
       - name: List the synthetic keys through the adapter
@@ -70,7 +70,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Verify the pinned kit and install the imaging dependency
-        uses: The-Plum-Team/mod-base/actions/setup@acb01ca4f625a5d27f1c1a709a416d9725bef64f # v1.7.0
+        uses: The-Plum-Team/mod-base/actions/setup@d938d8bc404aec629e925ba57d8a4f4a8ada9f07 # v1.7.1
       - name: Generate the synthetic packaged output
         id: synthetic
         shell: bash
@@ -86,7 +86,7 @@ jobs:
             python3 -P scripts/canary/produce.py synthesize --key "$KEY" --output "$output"
           printf 'e2e_root=%s\ntree=%s\n' "$output" "$(git rev-parse 'HEAD^{tree}')" >> "$GITHUB_OUTPUT"
       - name: Prepare and hand off synthetic evidence
-        uses: The-Plum-Team/mod-base/actions/prepare-evidence@acb01ca4f625a5d27f1c1a709a416d9725bef64f # v1.7.0
+        uses: The-Plum-Team/mod-base/actions/prepare-evidence@d938d8bc404aec629e925ba57d8a4f4a8ada9f07 # v1.7.1
         with:
           e2e-root: ${{ steps.synthetic.outputs.e2e_root }}
           key: ${{ matrix.key }}
@@ -110,7 +110,7 @@ jobs:
       actions: write
     steps:
       - name: Dispatch the separately locked Pages publication
-        uses: The-Plum-Team/mod-base/actions/notify-pages@acb01ca4f625a5d27f1c1a709a416d9725bef64f # v1.7.0
+        uses: The-Plum-Team/mod-base/actions/notify-pages@d938d8bc404aec629e925ba57d8a4f4a8ada9f07 # v1.7.1
         with:
           operation: deploy
           run-id: ${{ github.run_id }}
